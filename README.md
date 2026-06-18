@@ -15,7 +15,7 @@ graph TD
     E[User Query] -->|Ask / Retrieve| F[FastAPI Backend]
     F -->|Similarity Search| D
     D -->|Context Chunks| F
-    F -->|Construct Prompt| G[Local Ollama llama3.2]
+    F -->|Construct Prompt| G[Groq Cloud API llama-3.1-8b-instant]
     G -->|Generate Answer| F
     
     F -->|Log Interaction| H[(SQLite Database)]
@@ -24,7 +24,7 @@ graph TD
 ```
 
 The system is split into three main parts:
-1. **RAG Pipeline (Core)**: Ingests, chunks, embeds, and indexes the PDF into a local ChromaDB. It queries a local Ollama server running the 3B `llama3.2` model.
+1. **RAG Pipeline (Core)**: Ingests, chunks, embeds, and indexes the PDF into a local ChromaDB. It queries the Groq Cloud API using the `llama-3.1-8b-instant` model.
 2. **FastAPI Backend (`app/main.py`)**: Exposes endpoints `/ingest`, `/ask`, and `/analytics`, running under Uvicorn.
 3. **SQLite Logging Layer (`app/database.py`)**: Persists interaction metadata (query, answer, sources, response latency, and resolution success) to a local SQLite database (`query_logs.db`).
 4. **Streamlit Frontend (`frontend.py`)**: A premium dark-themed UI that provides a chatbot interface and a detailed analytics view (visualized using Plotly).
@@ -40,7 +40,7 @@ The system is split into three main parts:
 
 ### 2. Model & Embedding Selections
 - **Embeddings**: `sentence-transformers/all-MiniLM-L6-v2` (384-dimensional dense vectors). It runs completely locally on CPU/GPU, is extremely lightweight, and produces high-quality semantic representations.
-- **LLM**: Ollama `llama3.2:latest` (3 Billion parameters). It is optimized for local performance on standard consumer GPUs (such as the local RTX 3050 Laptop GPU with 4GB VRAM) and operates at a temperature of `0.0` to maximize factual correctness and prevent hallucination.
+- **LLM**: Groq Cloud API `llama-3.1-8b-instant` (8 Billion parameters). It is optimized for extremely fast inference (sub-second response latency) and operates at a temperature of `0.0` to maximize factual correctness and prevent hallucination.
 - **Safety/Hallucination Guardrails**: The system prompt forces the LLM to reply with exactly `"Answer not found in context."` when the retrieved context lacks the answer. The backend tracks this to flag queries as out-of-scope in the logs.
 
 ### 3. Database Schema Design
@@ -59,22 +59,17 @@ Interactions are persisted to the SQLite database with the following schema:
 
 ### Prerequisites
 - Python 3.10+
-- [Ollama](https://ollama.com) installed
 
 ### 1. Clone & Set Up Environment
 ```bash
-# In the project workspace directory:
+# install dependencies:
 pip install -r requirements.txt
 ```
 
-### 2. Start Ollama & Load Model
-If Ollama is not already running, start the server:
+### 2. Configure API Key
+Create a `.env` file in the root of the project:
 ```bash
-ollama serve
-```
-Then download the model (already loaded on this system):
-```bash
-ollama pull llama3.2
+GROQ_API_KEY=your_groq_api_key_here
 ```
 
 ### 3. Run FastAPI Backend
@@ -137,7 +132,7 @@ Open **`http://127.0.0.1:8501`** in your web browser.
         }
       }
     ],
-    "latency": 1.25,
+    "latency": 0.25,
     "answer_found": true
   }
   ```
@@ -148,16 +143,16 @@ Open **`http://127.0.0.1:8501`** in your web browser.
   ```json
   {
     "total_queries": 37,
-    "avg_latency": 1.53,
+    "avg_latency": 0.24,
     "success_rate": 67.56,
     "frequent_queries": [
       { "query": "What is the governing law of the agreement?", "count": 3 }
     ],
     "unresolved_queries": [
-      { "query": "How to cook a pepperoni pizza?", "timestamp": "2026-06-18 16:13:32", "latency": 0.51 }
+      { "query": "How to cook a pepperoni pizza?", "timestamp": "2026-06-18 16:13:32", "latency": 0.15 }
     ],
     "latency_history": [
-      { "id": 1, "timestamp": "2026-06-18 16:12:28", "latency": 2.28, "answer_found": true }
+      { "id": 1, "timestamp": "2026-06-18 16:12:28", "latency": 0.28, "answer_found": true }
     ]
   }
   ```
