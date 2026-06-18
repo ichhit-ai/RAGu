@@ -1,144 +1,135 @@
-# RAGu: RAG-based Document Q&A System with Analytics Dashboard
+# RAGu: Legal Q&A Assistant & Analytics Dashboard
 
-An end-to-end Retrieval-Augmented Generation (RAG) system built over the **AWS Customer Agreement** (PDF). The system consists of a FastAPI backend with SQL-based interaction logging and a polished Streamlit analytics dashboard.
+RAGu is a lightweight Retrieval-Augmented Generation (RAG) system built to answer questions about the **AWS Customer Agreement** PDF. It uses a FastAPI backend, logs query interactions locally in SQLite, and displays performance metrics on a Streamlit dashboard.
+
+It supports two LLM backends:
+1. **Groq Cloud API** (Default) - ultra-fast answers using `llama-3.1-8b-instant`.
+2. **Local Ollama** - for running completely offline using local models like `llama3.2`.
 
 ---
 
-## 🏗️ System Architecture
+## How it works
 
 ```mermaid
 graph TD
-    A[AWS Customer Agreement.pdf] -->|Parse & Chunk| B[Recursive Text Splitter]
-    B -->|Generate Embeddings| C[all-MiniLM-L6-v2]
-    C -->|Store Vectors| D[ChromaDB Local Vector Store]
+    A[AWS Customer Agreement.pdf] -->|Chunking| B[Recursive Text Splitter]
+    B -->|Embeddings| C[all-MiniLM-L6-v2]
+    C -->|Vector DB| D[ChromaDB]
     
-    E[User Query] -->|Ask / Retrieve| F[FastAPI Backend]
-    F -->|Similarity Search| D
+    E[User Query] -->|Ask| F[FastAPI Backend]
+    F -->|Search| D
     D -->|Context Chunks| F
-    F -->|Construct Prompt| G[Groq Cloud API / Local Ollama]
-    G -->|Generate Answer| F
+    F -->|Prompt| G[Groq / Ollama]
+    G -->|Response| F
     
-    F -->|Log Interaction| H[(SQLite Database)]
-    F -->|Return Response| I[Streamlit Dashboard UI]
-    I -->|Fetch Stats| H
+    F -->|Log Query| H[(SQLite DB)]
+    F -->|Return| I[Streamlit UI]
+    I -->|Read Stats| H
 ```
 
-The system is designed to be highly modular and support two backend LLM orchestration options:
-1. **Groq Cloud API (Default / Recommended)**: Queries the cloud endpoint using `llama-3.1-8b-instant` for ultra-fast, sub-second responses.
-2. **Local Ollama Server**: Compatible with local models like `llama3.2` running on localhost (ideal for offline, private deployments).
+---
+
+## Design Choices & Assumptions
+
+*   **Chunking (800 chars / 150 overlap)**: Legal docs are dense and have long clauses. If chunks are too small, sentences get cut in half and lose meaning. If they're too big, we waste token limits and slow down the API. An 800-character chunk size with a 150-character overlap keeps the clauses readable and accurate.
+*   **Embeddings**: We used `all-MiniLM-L6-v2` because it runs quickly on local CPUs, is lightweight, and works great for semantic search.
+*   **Guardrails**: If someone asks a question that isn't answered in the PDF (like a pizza recipe or football scores), the LLM is instructed to reply with exactly `"Answer not found in context."`. This gets logged in SQLite to help track out-of-scope queries on the dashboard.
 
 ---
 
-## 🛠️ Key Design Decisions & Assumptions
+## Setup & How to Run
 
-### 1. Chunking Strategy
-- **Chunk Size**: `800` characters.
-- **Chunk Overlap**: `150` characters.
-- **Justification**: Legal agreements contain highly structured, dense, and clause-specific sections. If the chunk size is too small (e.g., 200 characters), it partitions sections mid-sentence or mid-definition, losing vital contextual details. If it is too large (e.g., 3000 characters), irrelevant clauses contaminate the prompt context and increase inference latency. An 800-character chunk ensures legal clauses fit within the context, while a 150-character overlap prevents critical boundaries from being truncated at chunk splits.
+Here is how to set it up and run it on your machine.
 
-### 2. Model & Embedding Selections
-- **Embeddings**: `sentence-transformers/all-MiniLM-L6-v2` (384-dimensional dense vectors). It runs completely locally on CPU/GPU, is extremely lightweight, and produces high-quality semantic representations.
-- **LLM Options**:
-  - **Groq API**: `llama-3.1-8b-instant` (8 Billion parameters) via environment variables. Extremely low latency (sub-second answers).
-  - **Ollama**: `llama3.2:latest` (3 Billion parameters) running locally.
-- **Safety/Hallucination Guardrails**: The system prompt forces the LLM to reply with exactly `"Answer not found in context."` when the retrieved context lacks the answer. The backend tracks this to flag queries as out-of-scope in the logs.
-
----
-
-## 🚀 Installation & Setup (After Cloning)
-
-If you have cloned this repository, follow these steps to run it locally:
-
-### 1. Install Dependencies
+### 1. Install dependencies
+Make sure you have Python 3 installed, then run:
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Configure Your Environment (.env)
-Create a new file named **`.env`** in the root of the project (at the same level as `frontend.py` and `app/`). Refer to `.env.example` for details.
+### 2. Add your environment variables
+Create a `.env` file in the root directory (you can copy `.env.example`).
 
-*   **Option A: Groq Cloud API (Default - Recommended)**
+*   **To use Groq (Recommended for speed):**
     ```env
     LLM_PROVIDER=groq
-    GROQ_API_KEY=your_groq_api_key_here
+    GROQ_API_KEY=your_actual_api_key_here
     GROQ_MODEL=llama-3.1-8b-instant
     ```
-*   **Option B: Local Ollama (Private Offline Setup)**
-    *   Make sure you have Ollama running locally (e.g., `ollama run llama3.2`).
+*   **To use Ollama (Fully local):**
     ```env
     LLM_PROVIDER=ollama
     OLLAMA_ENDPOINT=http://localhost:11434
     OLLAMA_MODEL=llama3.2
     ```
-*(Note: `.env` is listed in `.gitignore` to prevent committing your credentials to Git).*
+*(Note: `.env` is ignored by Git, so your API keys will stay safe).*
 
-### 3. Run FastAPI Backend
-Start the backend server on port 8000:
+### 3. Start the FastAPI backend
+Run the backend server:
 ```bash
 python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
-*The server will automatically initialize the SQLite log database (`app/query_logs.db`).*
+This automatically sets up the SQLite database file (`app/query_logs.db`).
 
-### 4. Ingest the Document (Crucial First Step)
-Trigger the PDF parsing and ingestion into ChromaDB:
-*   **Via Web UI**: Open the Streamlit dashboard, go to the **System Architecture** tab, and click **🔄 Trigger Document Ingestion**.
+### 4. Ingest the document
+You need to index the PDF before asking questions. You can do this in two ways:
+*   **From the UI**: Go to the **System Architecture** tab on the Streamlit page and click the **Trigger Document Ingestion** button.
 *   **Via Command Line**:
     ```bash
     curl -X POST http://127.0.0.1:8000/ingest
     ```
-> [!IMPORTANT]
-> **Database Auto-Clear on Ingestion:** Running ingestion automatically clears both the local `app/chroma_db` folder and your SQLite query analytics logs database. This ensures your vectors and dashboard metrics start completely fresh for the document.
+*Note: Ingesting the document will automatically clear both the SQLite logs database and the Chroma DB index so that everything starts fresh.*
 
-### 5. Seed Test Queries (Optional)
-Run our self-healing log seeder to populate your dashboard charts immediately:
+### 5. Seed test queries (Optional)
+If you want to quickly test the charts and dashboard widgets, run the seeding script:
 ```bash
 python3 seed_logs.py
 ```
-> [!WARNING]
-> **Groq Rate-Limiting Caution:** The Groq API free tier has a strict limit of 14,400 Tokens Per Minute (TPM). Because similarity search sends large text contexts to the LLM, the seeding script includes a 20-second spacing delay and automatic backoff to prevent triggering 429 errors.
+*Note: Since Groq's free tier has a limit of 14,400 tokens per minute, the seeder runs queries with a 20-second delay to avoid hitting rate limits.*
 
-### 6. Start the Streamlit Dashboard UI
-Run the frontend in a separate terminal:
+### 6. Start the Streamlit UI
+Run this command in a new terminal window:
 ```bash
-python3 -m streamlit run frontend.py --server.port 8501 --server.address 127.0.0.1
+python3 -m streamlit run frontend.py
 ```
-Open **`http://127.0.0.1:8501`** in your web browser.
+Open **`http://127.0.0.1:8501`** in your browser.
 
 ---
 
-## 📈 API Endpoints Reference
+## API Endpoints
 
-### 1. `POST /ingest`
-- **Description**: Parses, chunks, embeds, and saves the `AWS Customer Agreement.pdf` text in ChromaDB.
-- **Response**:
-  ```json
-  {
-    "message": "PDF ingested successfully",
-    "num_chunks": 99
-  }
-  ```
+### `POST /ingest`
+Cleans up the database and parses/indexes the agreement PDF.
+*   **Response**:
+    ```json
+    {
+      "message": "pdf ingested successfully",
+      "num_chunks": 99
+    }
+    ```
 
-### 2. `POST /ask`
-- **Request Body**:
-  ```json
-  {
-    "query": "What is the governing law of the agreement?"
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "answer": "The governing law of the agreement is the laws of the State of Washington, without reference to conflict of laws principles...",
-    "sources": [
-      {
-        "content": "...Governing Law. The laws of the State of Washington, without reference to conflict of laws principles, govern this Agreement...",
-        "metadata": {
-          "page": 11,
-          "score": 0.3541
+### `POST /ask`
+Submit a question to the RAG pipeline.
+*   **Request Body**:
+    ```json
+    {
+      "query": "What is the governing law of the agreement?"
+    }
+    ```
+*   **Response**:
+    ```json
+    {
+      "answer": "The governing law of the agreement is the laws of the State of Washington...",
+      "sources": [
+        {
+          "content": "...Governing Law. The laws of the State of Washington...",
+          "metadata": {
+            "page": 11,
+            "score": 0.3541
+          }
         }
-      }
-    ],
-    "latency": 0.25,
-    "answer_found": true
-  }
-  ```
+      ],
+      "latency": 0.25,
+      "answer_found": true
+    }
+    ```
