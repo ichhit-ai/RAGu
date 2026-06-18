@@ -29,6 +29,8 @@ def index():
 @app.post("/ingest", status_code=status.HTTP_201_CREATED)
 def handle_ingest():
     try:
+        # Clear the SQLite query log analytics database first
+        clear_db()
         chunks_count = ingest_pdf()
         return {"message": "pdf ingested successfully", "num_chunks": chunks_count}
     except FileNotFoundError as e:
