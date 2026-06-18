@@ -54,12 +54,23 @@ If you have cloned this repository, follow these steps to run it locally:
 pip install -r requirements.txt
 ```
 
-### 2. Configure Your API Key (.env)
-Create a new file named **`.env`** in the root of the project (at the same level as `frontend.py` and `app/`). Inside `.env`, add your Groq API key:
-```env
-GROQ_API_KEY=your_groq_api_key_here
-```
-*(Note: `.env` is already configured in `.gitignore` so your API key will never be committed to Git).*
+### 2. Configure Your Environment (.env)
+Create a new file named **`.env`** in the root of the project (at the same level as `frontend.py` and `app/`). Refer to `.env.example` for details.
+
+*   **Option A: Groq Cloud API (Default - Recommended)**
+    ```env
+    LLM_PROVIDER=groq
+    GROQ_API_KEY=your_groq_api_key_here
+    GROQ_MODEL=llama-3.1-8b-instant
+    ```
+*   **Option B: Local Ollama (Private Offline Setup)**
+    *   Make sure you have Ollama running locally (e.g., `ollama run llama3.2`).
+    ```env
+    LLM_PROVIDER=ollama
+    OLLAMA_ENDPOINT=http://localhost:11434
+    OLLAMA_MODEL=llama3.2
+    ```
+*(Note: `.env` is listed in `.gitignore` to prevent committing your credentials to Git).*
 
 ### 3. Run FastAPI Backend
 Start the backend server on port 8000:
@@ -68,17 +79,23 @@ python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 *The server will automatically initialize the SQLite log database (`app/query_logs.db`).*
 
-### 4. Ingest the Document
-Trigger the PDF parsing and ingestion into ChromaDB by sending a POST request:
-```bash
-curl -X POST http://127.0.0.1:8000/ingest
-```
+### 4. Ingest the Document (Crucial First Step)
+Trigger the PDF parsing and ingestion into ChromaDB:
+*   **Via Web UI**: Open the Streamlit dashboard, go to the **System Architecture** tab, and click **🔄 Trigger Document Ingestion**.
+*   **Via Command Line**:
+    ```bash
+    curl -X POST http://127.0.0.1:8000/ingest
+    ```
+> [!IMPORTANT]
+> **Database Auto-Clear on Ingestion:** Running ingestion automatically clears both the local `app/chroma_db` folder and your SQLite query analytics logs database. This ensures your vectors and dashboard metrics start completely fresh for the document.
 
 ### 5. Seed Test Queries (Optional)
-Run the script to populate the analytics dashboard with realistic test logs:
+Run our self-healing log seeder to populate your dashboard charts immediately:
 ```bash
 python3 seed_logs.py
 ```
+> [!WARNING]
+> **Groq Rate-Limiting Caution:** The Groq API free tier has a strict limit of 14,400 Tokens Per Minute (TPM). Because similarity search sends large text contexts to the LLM, the seeding script includes a 20-second spacing delay and automatic backoff to prevent triggering 429 errors.
 
 ### 6. Start the Streamlit Dashboard UI
 Run the frontend in a separate terminal:
