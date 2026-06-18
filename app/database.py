@@ -75,3 +75,11 @@ def get_analytics():
         "unresolved_queries": unresolved,
         "latency_history": history
     }
+
+def clear_db():
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute("DELETE FROM logs")
+    conn.commit()
+    conn.close()
+

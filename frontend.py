@@ -409,17 +409,33 @@ with tab_config:
         st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("#### Re-run Document Ingestion")
-    st.markdown("If you want to clear and re-ingest the document PDF, click the button below. This will reload the PDF, partition it, calculate new embeddings, and rebuild the vector database.")
+    col_btn1, col_btn2 = st.columns(2)
     
-    if st.button("🔄 Trigger Document Ingestion"):
-        with st.spinner("Processing PDF, generating embeddings, and updating index..."):
+    with col_btn1:
+        st.markdown("#### Re-run Document Ingestion")
+        st.markdown("If you want to clear and re-ingest the document PDF, click the button below. This will reload the PDF, partition it, calculate new embeddings, and rebuild the vector database.")
+        if st.button("🔄 Trigger Document Ingestion"):
+            with st.spinner("Processing PDF, generating embeddings, and updating index..."):
+                try:
+                    res = requests.post(f"{API_URL}/ingest", timeout=60)
+                    if res.status_code in [200, 201]:
+                        data = res.json()
+                        st.success(f"Ingestion Succeeded! Split document into {data['num_chunks']} vector snippets.")
+                    else:
+                        st.error(f"Ingestion failed. Server response HTTP {res.status_code}: {res.text}")
+                except Exception as e:
+                    st.error(f"Could not connect to FastAPI server. Ingestion failed: {str(e)}")
+                    
+    with col_btn2:
+        st.markdown("#### Reset Analytics Logs")
+        st.markdown("Delete all logged query history, response times, and chat metrics from the SQLite database to start fresh.")
+        if st.button("🗑️ Clear Analytics Database"):
             try:
-                res = requests.post(f"{API_URL}/ingest", timeout=60)
-                if res.status_code in [200, 201]:
-                    data = res.json()
-                    st.success(f"Ingestion Succeeded! Split document into {data['num_chunks']} vector snippets.")
+                res = requests.delete(f"{API_URL}/analytics", timeout=10)
+                if res.status_code == 200:
+                    st.success("Database cleared successfully! Refresh the page to see changes.")
                 else:
-                    st.error(f"Ingestion failed. Server response HTTP {res.status_code}: {res.text}")
+                    st.error(f"Failed to clear database. Server response HTTP {res.status_code}: {res.text}")
             except Exception as e:
-                st.error(f"Could not connect to FastAPI server. Ingestion failed: {str(e)}")
+                st.error(f"Could not connect to FastAPI server. Reset failed: {str(e)}")
+

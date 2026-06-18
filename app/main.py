@@ -1,7 +1,7 @@
 import time
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from app.database import init_db, log_query, get_analytics
+from app.database import init_db, log_query, get_analytics, clear_db
 from app.rag import ingest_pdf, query_rag, get_vectorstore
 from app.schemas import QueryRequest, QueryResponse, AnalyticsResponse, SourceSnippet
 
@@ -92,4 +92,15 @@ def handle_analytics():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"failed to fetch analytics: {str(e)}"
+        )
+
+@app.delete("/analytics")
+def handle_clear_analytics():
+    try:
+        clear_db()
+        return {"message": "analytics database cleared successfully"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"failed to clear analytics database: {str(e)}"
         )
