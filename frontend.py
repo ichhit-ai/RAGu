@@ -4,6 +4,11 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 st.set_page_config(
     page_title="RAGu - Legal Q&A & Analytics",
@@ -384,9 +389,18 @@ with tab_config:
         st.markdown('<div class="config-value">ChromaDB (Local persistent sqlite3 engine)</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         
+        provider = os.getenv("LLM_PROVIDER", "groq").lower().strip()
+        if provider == "ollama":
+            endpoint = os.getenv("OLLAMA_ENDPOINT", "http://localhost:11434")
+            model = os.getenv("OLLAMA_MODEL", "llama3.2")
+            provider_desc = f"Local Ollama Server<br><b>Endpoint:</b> {endpoint}<br><b>Model:</b> <code>{model}</code><br><b>Temperature:</b> 0.0"
+        else:
+            model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+            provider_desc = f"Groq Cloud API<br><b>Model:</b> <code>{model}</code><br><b>Temperature:</b> 0.0"
+
         st.markdown('<div class="config-card">', unsafe_allow_html=True)
         st.markdown('<div class="config-title">🤖 LLM Orchestration Server</div>', unsafe_allow_html=True)
-        st.markdown('<div class="config-value">Groq Cloud API<br><b>Model:</b> <code>llama-3.1-8b-instant</code><br><b>Temperature:</b> 0.0 (Factual deterministic outputs)</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="config-value">{provider_desc}</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         
         st.markdown('<div class="config-card">', unsafe_allow_html=True)

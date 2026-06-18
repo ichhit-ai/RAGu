@@ -78,31 +78,57 @@ def query_rag(query_text: str, k: int = 10):
         "Do not refer to the context as 'the text' or 'the context' in the final response if you can avoid it; just state the facts."
     )
     
-    api_key = os.getenv("GROQ_API_KEY")
-    if not api_key:
-        raise ValueError("GROQ_API_KEY environment variable is not set. check your .env file.")
-        
-    url = "https://api.groq.com/openai/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "model": "llama-3.1-8b-instant",
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Context:\n{context}\n\nQuery: {query_text}"}
-        ],
-        "temperature": 0.0
-    }
+    provider = os.getenv("LLM_PROVIDER", "groq").lower().strip()
     
-    try:
-        response = requests.post(url, json=payload, headers=headers, timeout=30)
-        response.raise_for_status()
-        res_data = response.json()
-        answer = res_data["choices"][0]["message"]["content"].strip()
-    except Exception as e:
-        answer = f"failed to query groq api: {str(e)}"
+    if provider == "ollama":
+        ollama_endpoint = os.getenv("OLLAMA_ENDPOINT", "http://localhost:11434").rstrip("/")
+        ollama_model = os.getenv("OLLAMA_MODEL", "llama3.2").strip()
+        url = f"{ollama_endpoint}/api/chat"
+        payload = {
+            "model": ollama_model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Context:\n{context}\n\nQuery: {query_text}"}
+            ],
+            "stream": False,
+            "options": {
+                "temperature": 0.0
+            }
+        }
+        try:
+            response = requests.post(url, json=payload, timeout=45)
+            response.raise_for_status()
+            res_data = response.json()
+            answer = res_data["message"]["content"].strip()
+        except Exception as e:
+            answer = f"failed to query ollama api: {str(e)}"
+            
+    else:
+        api_key = os.getenv("GROQ_API_KEY")
+        if not api_key:
+            raise ValueError("GROQ_API_KEY environment variable is not set. check your .env file.")
+            
+        groq_model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant").strip()
+        url = "https://api.groq.com/openai/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": groq_model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Context:\n{context}\n\nQuery: {query_text}"}
+            ],
+            "temperature": 0.0
+        }
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=30)
+            response.raise_for_status()
+            res_data = response.json()
+            answer = res_data["choices"][0]["message"]["content"].strip()
+        except Exception as e:
+            answer = f"failed to query groq api: {str(e)}"
     
     answer_found = True
     if "Answer not found in context" in answer or answer.strip() == "Answer not found in context.":
