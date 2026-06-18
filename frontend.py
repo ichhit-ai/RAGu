@@ -282,7 +282,7 @@ with tab_analytics:
             with col2:
                 render_kpi_card(f"{analytics_data['avg_latency']:.3f} s", "Avg Response Latency")
             with col3:
-                render_kpi_card(f"{analytics_data['success_rate']:.1f}%", "Query Resolution Rate")
+                render_kpi_card(len(analytics_data.get("unresolved_queries", [])), "Out-of-Scope Queries Blocked")
                 
             st.markdown("---")
             
