@@ -1,4 +1,5 @@
 import os
+import shutil
 import requests
 from dotenv import load_dotenv
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -29,8 +30,14 @@ def ingest_pdf():
     if not os.path.exists(pdf_path):
         raise FileNotFoundError(f"pdf not found at: {pdf_path}")
     
+    # delete the old Chroma database directory if it exists to prevent duplicate chunks
+    if os.path.exists(db_dir):
+        shutil.rmtree(db_dir)
+        _db = None
+    
     loader = PyPDFLoader(pdf_path)
     docs = loader.load()
+
     
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=800,
