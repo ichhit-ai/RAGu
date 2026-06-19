@@ -80,6 +80,15 @@ You need to index the PDF before asking questions. You can do this in two ways:
     ```
 *Note: Ingesting the document will automatically clear both the SQLite logs database and the Chroma DB index so that everything starts fresh.*
 
+#### How to Ingest a Custom PDF
+If you want to use your own document instead of the default AWS Customer Agreement:
+1. Place your new PDF file in the root directory (e.g., `My_New_Document.pdf`).
+2. Open `app/rag.py` and modify line 13 to point to your new filename:
+   ```python
+   pdf_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "My_New_Document.pdf"))
+   ```
+3. Trigger re-ingestion from the Streamlit UI or run the `/ingest` POST request.
+
 ### 5. Seed test queries (Optional)
 If you want to quickly test the charts and dashboard widgets, run the seeding script:
 ```bash
