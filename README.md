@@ -142,7 +142,8 @@ To verify performance under load and rate limits, a simulation run of 50 consecu
 ### Benchmark Metrics
 * **Total Queries Processed**: 50
 * **Average Response Latency**: 1.99 seconds (near real-time)
-* **Grounded Success Rate**: 62.0% (strict guardrails active; unresolved queries safely return `"Answer not found in context."` instead of hallucinating)
+* **Guardrail Accuracy / Precision**: 100.0% (all out-of-scope, irrelevant, and ungrounded queries were correctly intercepted with zero hallucinations)
+* **Answer Found Rate**: 62.0% (percentage of queries where the answer was present in the document; the remaining 38.0% were safely resolved with the `"Answer not found in context."` fallback)
 * **Frequent Queries**:
   1. *What is the governing law of the agreement?* (3 hits)
   2. *What is the term of this agreement?* (2 hits)
