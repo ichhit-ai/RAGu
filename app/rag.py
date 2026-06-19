@@ -59,7 +59,7 @@ def ingest_pdf():
     )
     return len(chunks)
 
-def query_rag(query_text: str, k: int = 10):
+def query_rag(query_text: str, k: int = 5):
     db = get_vectorstore()
     if db is None:
         raise ValueError("database empty, ingest pdf first.")
