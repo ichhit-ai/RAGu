@@ -30,9 +30,15 @@ def ingest_pdf():
     if not os.path.exists(pdf_path):
         raise FileNotFoundError(f"pdf not found at: {pdf_path}")
     
-    # delete the old Chroma database directory if it exists to prevent duplicate chunks
-    if os.path.exists(db_dir):
-        shutil.rmtree(db_dir)
+    # Clear the old Chroma database if it exists to prevent duplicate chunks
+    db = get_vectorstore()
+    if db is not None:
+        try:
+            db.delete_collection()
+        except Exception as e:
+            print(f"Warning: failed to delete collection: {e}")
+            if os.path.exists(db_dir):
+                shutil.rmtree(db_dir)
         _db = None
     
     loader = PyPDFLoader(pdf_path)
